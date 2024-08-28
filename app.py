@@ -1,12 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.express as px
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score
 import graficos
 
 
@@ -22,8 +15,6 @@ def carregar_dados():
 
     # Removendo ativos que não tiveram cotação em 2024
     dados = dados[dados["dt_ultima_cot"] > "2024-01-01"]
-
-    dados.drop(columns=["liq2m"])
 
     return dados
 
@@ -44,7 +35,6 @@ filtro_ticker = st.sidebar.selectbox("Análise Individual", ["Não analisar indi
 if filtro_ticker == "Não analisar individualmente":
     setores = sorted(dados["setor"].unique())
     filtro_setor = st.sidebar.selectbox("Setor", ["Todos"]+setores)
-
 
     # Definindo mínimo e máximo de cada indicador
     min_cotacao = dados["cotacao"].min()
@@ -111,7 +101,6 @@ if filtro_ticker == "Não analisar individualmente":
     max_valor_mercado = dados["valor_de_mercado"].max()
 
     min_valor = 0.00
-
 
     # Definindo intervalo de cada slider dos indicadores com 'session_state'
     if "slider_cotacao" not in st.session_state:
@@ -354,7 +343,7 @@ else:
     dados_filtrados = dados[dados["papel"] == filtro_ticker].reset_index(drop=True)
 
 
-tab1, tab2 = st.tabs(["Visão Geral do Mercado", "Clusterização"])
+tab1, tab2 = st.tabs(["Visão Geral do Mercado", "Análise de Grupos"])
 
 with tab1:
     st.dataframe(dados_filtrados, use_container_width=True)
@@ -371,11 +360,7 @@ with tab1:
 
 
 with tab2:
-    st.dataframe(dados_filtrados, use_container_width=True)
-    st.text(f"Registros totais: {dados_filtrados.shape[0]}")
     if dados_filtrados.empty:
         st.warning("Nenhum registro encontrado. Tente alterar os filtros.")
-    elif dados_filtrados.shape[0] > 1:
-        st.divider()
-
+    else:
         graficos.grafico_agrupamento(dados_filtrados)

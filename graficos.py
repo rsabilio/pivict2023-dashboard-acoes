@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
@@ -54,60 +54,68 @@ def coeficiente_silhueta(df):
 
 
 def grafico_agrupamento(df):
+    def color_mapper(value):
+        # Definindo uma paleta de 10 cores
+        palette = ['#FF0000', '#FF7F00', '#FFFF00', '#7FFF00', '#00FF00',  # tons de vermelho para verde
+                   '#00FF7F', '#00FFFF', '#007FFF', '#0000FF', '#7F00FF']  # tons de verde para roxo
+
+        # Garantindo que o valor esteja no intervalo 0-9
+        if 0 <= value <= 9:
+            return palette[value]
+        else:
+            return '#FFFFFF'  # Cor padrão (branco) para valores fora do intervalo
+
     st.subheader("Agrupamento")
-    if len(df) >= 10:
-        k = st.number_input("Insira o número de agrupamentos que deseja realizar:", step=0, min_value=1, max_value=10)
-    else:
-        k = st.number_input("Insira o número de agrupamentos que deseja realizar:", step=0, min_value=1, max_value=len(df))
-    
+
+    silhuetas = coeficiente_silhueta(df)
+    melhor_agrupamento = silhuetas.index(max(silhuetas)) + 2 # +2 porque o indice começa em 0 e o número de grupos começa em 2
+
+    st.text(f'O melhor agrupamento a ser feito é o de "{melhor_agrupamento}" grupos (coeficiente de silhueta = {max(silhuetas)}')
+    st.text("")
+
+    max_k = melhor_agrupamento if len(df) >= melhor_agrupamento else len(df)
+    k = st.number_input("Insira o número de agrupamentos que deseja realizar:", step=0, min_value=1, max_value=10, placeholder=f"{max_k}")
+
     X = score(df)
+    groups = [0] * len(df)
 
-    if k == 1:
-        fig = px.scatter(X, x="PC1", y="PC2", labels={"PC1":"", "PC2":""})
-
-        fig.update_xaxes(showticklabels=False)
-        fig.update_yaxes(showticklabels=False)
-
-        st.plotly_chart(fig)
-    else:
+    if k > 1:
         kmeans_kwargs = {"init": "k-means++", "n_init": 20, "max_iter": 300, "random_state": 42}
         kmeans = KMeans(n_clusters=k, **kmeans_kwargs).fit(X)
 
-        df_labels = df.copy()[["papel", "setor", "empresa"]]
-        df_labels["cor"] = kmeans.labels_
-        df_labels["score"] = X["PC2"]
+        groups = kmeans.labels_
 
-        match k-1:
-            case 1: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "vermelho"})
-            case 2: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "verde_lima", 2: "vermelho"})
-            case 3: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "ciano", 2: "ocre", 3: "vermelho"})
-            case 4: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "azul", 2: "verde_lima", 3: "ocre", 4: "vermelho"})
-            case 5: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "azul", 2: "verde_lima", 3: "amarelo", 4: "laranja", 5: "vermelho"})
-            case 6: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "azul", 2: "ciano", 3: "verde_lima", 4: "ocre", 5: "laranja", 6: "vermelho"})
-            case 7: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "azul", 2: "azul_claro", 3: "verde_lima", 4: "amarelo", 5: "ocre", 6: "laranja", 7: "vermelho"})
-            case 8: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "azul", 2: "azul_claro", 3: "ciano", 4: "verde_lima", 5: "amarelo", 6: "ocre", 7: "laranja", 8: "vermelho"})
-            case 9: df_labels["cor"] = df_labels["cor"].map({0: "roxo", 1: "azul", 2: "azul_claro", 3: "ciano", 4: "verde_lima", 5: "amarelo", 6: "ocre", 7: "laranja", 8: "laranja_escuro", 9: "vermelho"})
+    colors = [color_mapper(val) for val in groups]
+    fig = go.Figure(data=go.Scatter(x=X['PC1'],
+                              y=X['PC2'],
+                              mode='markers',
+                              marker_color=colors,
+                              text=df['papel']))  # hover text goes here
 
-        fig = px.scatter(X, x="PC1", y="PC2", color=kmeans.labels_, labels={"PC1":"", "PC2":""}, color_continuous_scale=px.colors.sequential.Turbo)
-        fig.update_xaxes(showticklabels=False)
-        fig.update_yaxes(showticklabels=False)
-        
-        st.plotly_chart(fig)
+    if k > 1:
+        silhouette_kmeans = silhouette_score(X, groups)
+        st.text(f"Coeficiente silhueta: {round(silhouette_kmeans, 4)}")
 
-        if len(df) != k:
-            silhouette_kmeans = silhouette_score(X, kmeans.labels_)
-            st.text(f"Coeficiente silhueta: {round(silhouette_kmeans, 4)}")
-        else:
-            st.text("Não é possível calcular o coeficiente silhueta de um DataFrame com o mesmo número de registros e agrupamentos.")
+    fig.update_xaxes(showticklabels=False)
+    fig.update_yaxes(showticklabels=False)
 
-        silhuetas = coeficiente_silhueta(df)
-        melhor_agrupamento = silhuetas.index(max(silhuetas))
+    st.plotly_chart(fig)
 
-        st.text(f'De acordo com o coeficiente silhueta, o melhor agrupamento a ser feito é o de "{melhor_agrupamento+2}" grupos')
-        st.text("")
+    # Definindo a função de estilo para colorir a coluna 'papel'
+    def highlight_papel(row):
+        color = color_mapper(row['grupo'])
+        return [f'background-color: {color}' if col == 'papel' else '' for col in row.index]
 
-        st.dataframe(df_labels, use_container_width=True)
+    # Aplica o estilo ao DataFrame
+    styled_df = df.copy()[["papel", "empresa", "setor"]]
+    styled_df['grupo'] = groups
+    styled_df = styled_df.sort_values(by='grupo')
 
+    # Aplicar o estilo ao DataFrame
+    styled_df = styled_df.style.apply(highlight_papel, axis=1)
+
+    # Mostrar o DataFrame estilizado no Streamlit
+    st.dataframe(styled_df, use_container_width=True)
 
 def grafico_empresas_setor(df):
     df_plot = df.copy()
