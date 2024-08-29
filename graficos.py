@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
+from streamlit import columns
 
 
 def score(df):
@@ -39,42 +40,46 @@ def coeficiente_silhueta(df):
     kmeans_kwargs = {"init": "k-means++", "n_init": 20, "max_iter": 300, "random_state": 42}
 
     silhouette_coefficients = []
-    if len(df) >= 10:
-        for idx, k in enumerate(range(2, 11)):
-            kmeans = KMeans(n_clusters=k, **kmeans_kwargs).fit(X)
-            score_kmeans = silhouette_score(X, kmeans.labels_)
-            silhouette_coefficients.append(score_kmeans)
-    else:
-        for idx, k in enumerate(range(2, len(df))):
-            kmeans = KMeans(n_clusters=k, **kmeans_kwargs).fit(X)
-            score_kmeans = silhouette_score(X, kmeans.labels_)
-            silhouette_coefficients.append(score_kmeans)
+    for k in range(2, min(len(df), 11)):
+        kmeans = KMeans(n_clusters=k, **kmeans_kwargs).fit(X)
+        score_kmeans = silhouette_score(X, kmeans.labels_)
+        silhouette_coefficients.append(score_kmeans)
 
     return silhouette_coefficients
 
 
 def grafico_agrupamento(df):
     def color_mapper(value):
-        # Definindo uma paleta de 10 cores
-        palette = ['#FF0000', '#FF7F00', '#FFFF00', '#7FFF00', '#00FF00',  # tons de vermelho para verde
-                   '#00FF7F', '#00FFFF', '#007FFF', '#0000FF', '#7F00FF']  # tons de verde para roxo
+        palette = ['#FF0000', '#FF7F00', '#FFFF00', '#7FFF00', '#00FF00',
+                   '#00FF7F', '#00FFFF', '#007FFF', '#0000FF', '#7F00FF']
 
-        # Garantindo que o valor esteja no intervalo 0-9
         if 0 <= value <= 9:
             return palette[value]
         else:
-            return '#FFFFFF'  # Cor padrão (branco) para valores fora do intervalo
+            return '#FFFFFF'
+
+    def highlight_papel(row):
+        color = color_mapper(row['Grupo'])
+        return [f'background-color: {color}' if col.lower() == 'papel' else '' for col in row.index]
 
     st.subheader("Agrupamento")
 
-    silhuetas = coeficiente_silhueta(df)
-    melhor_agrupamento = silhuetas.index(max(silhuetas)) + 2 # +2 porque o indice começa em 0 e o número de grupos começa em 2
+    # Verificação de número mínimo de registros
+    if len(df) < 2:
+        st.text("Não é possível realizar o agrupamento com menos de 2 registros.")
+        return
 
-    st.text(f'O melhor agrupamento a ser feito é o de "{melhor_agrupamento}" grupos (coeficiente de silhueta = {max(silhuetas)}')
+    silhuetas = coeficiente_silhueta(df)
+    if len(silhuetas) == 0:
+        melhor_agrupamento = 1
+    else:
+        melhor_agrupamento = silhuetas.index(max(silhuetas)) + 2
+        st.text(f'O melhor agrupamento a ser feito é o de "{melhor_agrupamento}" grupos (coeficiente de silhueta = {max(silhuetas)})')
     st.text("")
 
-    max_k = melhor_agrupamento if len(df) >= melhor_agrupamento else len(df)
-    k = st.number_input("Insira o número de agrupamentos que deseja realizar:", step=0, min_value=1, max_value=10, placeholder=f"{max_k}")
+    # Limitar o número de clusters ao número de registros no dataframe
+    max_k = min(len(df), 10)
+    k = st.number_input("Insira o número de agrupamentos que deseja realizar:", step=1, min_value=1, max_value=max_k, value=min(max_k, melhor_agrupamento))
 
     X = score(df)
     groups = [0] * len(df)
@@ -82,40 +87,41 @@ def grafico_agrupamento(df):
     if k > 1:
         kmeans_kwargs = {"init": "k-means++", "n_init": 20, "max_iter": 300, "random_state": 42}
         kmeans = KMeans(n_clusters=k, **kmeans_kwargs).fit(X)
-
         groups = kmeans.labels_
 
     colors = [color_mapper(val) for val in groups]
     fig = go.Figure(data=go.Scatter(x=X['PC1'],
-                              y=X['PC2'],
-                              mode='markers',
-                              marker_color=colors,
-                              text=df['papel']))  # hover text goes here
+                                    y=X['PC2'],
+                                    mode='markers',
+                                    marker=dict(
+                                        color=colors,  # Cores dos clusters
+                                        size=10,  # Tamanho dos marcadores
+                                        symbol='circle'
+                                    ),
+                                    text=df['papel']))
 
-    if k > 1:
+    # Cálculo do coeficiente de silhueta se houver clusters suficientes
+    try:
         silhouette_kmeans = silhouette_score(X, groups)
         st.text(f"Coeficiente silhueta: {round(silhouette_kmeans, 4)}")
+    except ValueError as e:
+        st.text(f"Não é possível calcular o coeficiente de silhueta com o número atual de clusters. Ajuste o número de agrupamentos entre 2 e {len(X)-1}")
 
     fig.update_xaxes(showticklabels=False)
     fig.update_yaxes(showticklabels=False)
-
     st.plotly_chart(fig)
-
-    # Definindo a função de estilo para colorir a coluna 'papel'
-    def highlight_papel(row):
-        color = color_mapper(row['grupo'])
-        return [f'background-color: {color}' if col == 'papel' else '' for col in row.index]
 
     # Aplica o estilo ao DataFrame
     styled_df = df.copy()[["papel", "empresa", "setor"]]
-    styled_df['grupo'] = groups
-    styled_df = styled_df.sort_values(by='grupo')
-
-    # Aplicar o estilo ao DataFrame
+    styled_df['Grupo'] = groups
+    styled_df = styled_df.sort_values(by='Grupo')
+    styled_df.reset_index(drop=True, inplace=True)
+    styled_df.index = styled_df.index + 1
+    styled_df = styled_df.rename(columns={"papel":"Papel", "empresa":"Empresa", "setor":"Setor"})
     styled_df = styled_df.style.apply(highlight_papel, axis=1)
-
-    # Mostrar o DataFrame estilizado no Streamlit
     st.dataframe(styled_df, use_container_width=True)
+
+
 
 def grafico_empresas_setor(df):
     df_plot = df.copy()

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import graficos
-from filters import SliderManager
+from filters import FiltersManager
 from config import columns_info
 
 st.set_page_config(layout="wide", page_title="Dashboard B3")
@@ -23,7 +23,7 @@ def reset_filters():
     if "filtro_setor" in st.session_state:
         st.session_state['filtro_setor'] = "Todos"
 
-    slider_manager.reset_sliders()
+    filters_manager.reset_sliders()
 
 ####
 
@@ -35,38 +35,29 @@ with st.spinner("Carregando dados, por favor aguarde..."):
     dados = carregar_dados()
 
 
-# Cria uma instância do SliderManager
-slider_manager = SliderManager(dados, columns_info)
-
+### Filtros
 
 st.sidebar.header("Filtros")
-
 
 setores = sorted(dados["setor"].unique())
 filtro_setor = st.sidebar.selectbox("Setor", ["Todos"]+setores, key='filtro_setor')
 
 # Cria todos os sliders
-# Tem que estar após a ação do botão Limpar
-slider_manager.create_sliders()
-
-# Programando botão de análise básica com 'session state' (o botão aparecerá abaixo dos sliders)
-if "button" not in st.session_state:
-    st.session_state.button = False
+filters_manager = FiltersManager(dados, columns_info)
+#slider_manager.create_sliders()
 
 
-# Botão para limpar sliders
+# Botão para limpar filtros
 st.sidebar.button("Limpar Filtros", on_click=reset_filters, key='button_reset_filters',use_container_width=True)
 
-
-# Botão para simplificar a análise
-#st.sidebar.button("Análise Simplificada", on_click=click_button, use_container_width=True)
+####
 
 
 dados_filtrados = dados.copy()
 if filtro_setor != "Todos":
     dados_filtrados = dados[dados["setor"] == filtro_setor].reset_index(drop=True)
 
-slider_values = slider_manager.get_slider_values()
+slider_values = filters_manager.get_slider_values()
 for column_name, (min_val, max_val) in slider_values.items():
     dados_filtrados = dados_filtrados[
         (dados_filtrados[column_name] >= min_val) &
@@ -93,15 +84,13 @@ with tab1:
 
 
 with tab2:
-    if dados_filtrados.empty:
-        st.warning("Nenhum registro encontrado. Tente alterar os filtros.")
+    if dados_filtrados.empty or len(dados_filtrados) < 2:
+        msg = """
+                É preciso ter mais de uma empresa para realizar a Análise de Grupos.
+
+                Tente alterar os filtros.
+              """
+        st.warning(msg)
+
     else:
-        if len(dados_filtrados) > 1:
-            graficos.grafico_agrupamento(dados_filtrados)
-        else:
-            msg="""
-            É preciso ter mais de uma empresa para realizar a Análise de Grupos.
-            
-            Tente ajustar os filtros.
-            """
-            st.warning(msg)
+        graficos.grafico_agrupamento(dados_filtrados)
