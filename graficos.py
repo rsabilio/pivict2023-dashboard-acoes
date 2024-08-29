@@ -210,7 +210,7 @@ def grafico_calor(df):
         return None
 
     # Calculo da matriz de correlação
-    corr_matrix = df[numeric_cols].corr()
+    corr_matrix = df.dropna()[numeric_cols].corr()
     # Criação da máscara para ocultar valores acima da diagonal principal
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
 
