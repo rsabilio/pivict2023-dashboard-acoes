@@ -129,7 +129,6 @@ def grafico_agrupamento(df):
     except ValueError as e:
         st.text(f"Não é possível calcular o coeficiente de silhueta com o número atual de clusters. Ajuste o número de agrupamentos entre 2 e {max_k}")
 
-
     # Aplica o estilo ao DataFrame
     styled_df  = df.copy()
     nova_ordem = ['papel', 'empresa', 'setor'] + [col for col in styled_df.columns if col not in ['papel', 'empresa', 'setor']]
