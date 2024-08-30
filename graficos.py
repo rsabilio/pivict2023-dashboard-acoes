@@ -127,7 +127,7 @@ def grafico_agrupamento(df):
         st.text(f"Coeficiente Silhueta: {round(silhouette_kmeans, 4)}")
 
     except ValueError as e:
-        st.text(f"Não é possível calcular o coeficiente de silhueta com o número atual de clusters. Ajuste o número de agrupamentos entre 2 e {len(X)-1}")
+        st.text(f"Não é possível calcular o coeficiente de silhueta com o número atual de clusters. Ajuste o número de agrupamentos entre 2 e {max_k}")
 
 
     # Aplica o estilo ao DataFrame
