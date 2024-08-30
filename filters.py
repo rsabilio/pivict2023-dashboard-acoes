@@ -1,6 +1,9 @@
 import streamlit as st
 
 class FiltersManager:
+    ANALYSIS_TYPE_SIMPLIFICADA = "Simplificada"
+    ANALYSIS_TYPE_COMPLETA = "Completa"
+
     def __init__(self, df, columns_info):
         """
         Inicializa o gerenciador de sliders.
@@ -19,13 +22,13 @@ class FiltersManager:
     def create_analysis_type(self):
         # Adiciona a seleção do tipo de análise à barra lateral
         if "analysis_type" not in st.session_state:
-            st.session_state["analysis_type"] = "Simplificada"  # Padrão é Simplificada
+            st.session_state["analysis_type"] = self.ANALYSIS_TYPE_SIMPLIFICADA  # Padrão é Simplificada
 
         st.sidebar.radio(
             "Tipo de Análise",
-            ["Simplificada", "Completa"],
+            [self.ANALYSIS_TYPE_SIMPLIFICADA, self.ANALYSIS_TYPE_COMPLETA],
             key="analysis_type",
-            index=0 if st.session_state["analysis_type"] == "Simplificada" else 1
+            index=0 if st.session_state["analysis_type"] == self.ANALYSIS_TYPE_SIMPLIFICADA else 1
         )
 
 
@@ -51,7 +54,7 @@ class FiltersManager:
                     if section not in expanders:
                         expanders[section] = st.expander(section, expanded=True)
 
-                    is_basic = st.session_state["analysis_type"] == "Simplificada" and column_info.get("basic", False)
+                    is_basic = st.session_state["analysis_type"] == self.ANALYSIS_TYPE_SIMPLIFICADA and column_info.get("basic", False)
 
                     # Adiciona o slider ao expander apropriado
                     with expanders[section]:
@@ -64,7 +67,7 @@ class FiltersManager:
                                 key=f"slider_{column_name}",
                                 help=column_info["help"]
                             )
-                        elif st.session_state["analysis_type"] == "Completa":
+                        elif st.session_state["analysis_type"] == self.ANALYSIS_TYPE_COMPLETA:
                             self.slider_values[column_name] = st.slider(
                                 column_info["full_name"],
                                 min_value=min_val,
@@ -80,6 +83,9 @@ class FiltersManager:
         - dict: Dicionário com os valores dos sliders.
         """
         return self.slider_values
+
+    def get_analysis_type(self):
+        return st.session_state['analysis_type']
 
     def reset_sliders(self):
         """
