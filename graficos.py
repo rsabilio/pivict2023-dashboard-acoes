@@ -177,12 +177,22 @@ def grafico_empresas_setor(df):
     maior_setor_val  = df_plot.iloc[[maior_setor]]["Quantidade de Empresas"].values[0]
 
     title = f'"{maior_setor_nome}" é o maior setor, com {maior_setor_val} empresas.'
-    fig = px.bar(df_plot, x="Quantidade de Empresas", y="Setor", title=title)
+    fig = px.bar(
+        df_plot,
+        x="Quantidade de Empresas",
+        y="Setor",
+        title=title,
+        text="Quantidade de Empresas"  # Adiciona os valores das barras como texto
+    )
     fig.update_layout(
         barmode="stack",
-        yaxis={"categoryorder": "total ascending"},
-        height=800  # Ajuste o valor conforme necessário para aumentar a altura
+        yaxis={"categoryorder": "total ascending", "tickfont": dict(size=16)},  # Tamanho da fonte dos ticks do eixo Y
+        xaxis={"tickfont": dict(size=16)},  # Tamanho da fonte dos ticks do eixo X
+        title_font=dict(size=18),  # Tamanho da fonte do título
+        height=1000  # Ajuste o valor conforme necessário para aumentar a altura
     )
+
+    fig.update_traces(textposition="outside", textfont=dict(size=14))
 
     st.plotly_chart(fig)
 
@@ -299,6 +309,7 @@ def grafico_calor(df):
 
     # Calculo da matriz de correlação
     corr_matrix = df.dropna()[numeric_cols].corr()
+
     # Criação da máscara para ocultar valores acima da diagonal principal
     mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
 
@@ -311,19 +322,29 @@ def grafico_calor(df):
         masked_corr_matrix,
         text_auto=".2f", # Exibe os valores nas células
         color_continuous_scale="RdBu", # Usa uma escala de cores nomeada
-        width=1500, # Largura do gráfico
-        height=1000, # Altura do gráfico
+        width=1700, # Largura do gráfico
+        height=1100, # Altura do gráfico
     )
 
     ticktexts = [columns_info[indicador]['full_name'] for indicador in df.columns.values.tolist() if indicador in columns_info]
 
     # Atualização do layout do gráfico
     fig.update_layout(
-        xaxis_title = "",
-        yaxis_title = "",
-        xaxis=dict(tickmode="array", tickvals=list(range(len(corr_matrix.columns))), ticktext=ticktexts), # corr_matrix.columns
-        yaxis=dict(tickmode="array", tickvals=list(range(len(corr_matrix.columns))), ticktext=ticktexts), # corr_matrix.columns
-        coloraxis_colorbar_title = "Correlação"
+        xaxis_title="",
+        yaxis_title="",
+        xaxis=dict(
+            tickmode="array",
+            tickvals=list(range(len(corr_matrix.columns))),
+            ticktext=ticktexts,
+            tickfont=dict(size=16)  # Define o tamanho da fonte dos ticks no eixo x
+        ),
+        yaxis=dict(
+            tickmode="array",
+            tickvals=list(range(len(corr_matrix.columns))),
+            ticktext=ticktexts,
+            tickfont=dict(size=16)  # Define o tamanho da fonte dos ticks no eixo y
+        ),
+        coloraxis_colorbar_title="Correlação"
     )
 
     # Atualização do hovertemplate para formatar valores com duas casas decimais
